@@ -14,6 +14,7 @@ Internal Django web app for browsing CUCM CDR records stored in PostgreSQL.
 - Excel export for the currently filtered result set
 - Query optimization by selecting only displayed columns
 - Containerized deployment with Gunicorn behind Nginx
+- Docker-only runtime workflow
 
 ## Project Structure
 
@@ -53,56 +54,14 @@ cdr_parser/
         └── cdr_list.html
 ```
 
-## Local Setup
-
-1. Create a virtual environment and install dependencies:
+## Docker Usage
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-2. Create a `.env` file:
-
-```bash
-cp .env .env
-```
-
-3. Run Django migrations for built-in apps only:
-
-```bash
-python manage.py migrate
-```
-
-This will create Django auth/session/admin tables. It does not recreate or modify `cucm_cdr`.
-
-4. Create a superuser:
-
-```bash
-python manage.py createsuperuser
-```
-
-5. Start the app:
-
-```bash
-python manage.py runserver
-```
-
-6. Open:
-
-```text
-http://127.0.0.1:8000/
-```
-
-## Docker
-
-```bash
-cp .env .env
+cp .env.example .env
 docker compose up --build
 ```
 
-Nginx listens on port `80` and proxies requests to Gunicorn in the `web` container.
+The image installs Python dependencies with `uv`, then runs Django behind Gunicorn. Nginx listens on port `80` and proxies requests to the `web` container.
 
 Run migrations and create a superuser in the container:
 
@@ -116,6 +75,8 @@ Open:
 ```text
 http://127.0.0.1/
 ```
+
+This creates Django auth/session/admin tables only. It does not recreate or modify `cucm_cdr`.
 
 ## How It Works
 
@@ -154,4 +115,3 @@ ON cucm_cdr USING gin (last_redirect_dn gin_trgm_ops);
 ```
 
 `pg_trgm` indexes are recommended because the UI uses partial matching with `icontains`.
-# cucm_cdr
