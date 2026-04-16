@@ -8,13 +8,13 @@ Internal Django web app for browsing CUCM CDR records stored in PostgreSQL.
 - Built-in Django authentication for login/logout
 - Auth-protected CDR list page
 - Unmanaged Django model mapped to existing `cucm_cdr` table
-- Phone number search across multiple CUCM fields
+- One or many phone number searches across multiple CUCM fields
 - Start/end date filters on `date_time_origination`
 - Pagination with 100 rows per page
 - Excel export for the currently filtered result set
 - Query optimization by selecting only displayed columns
-- Containerized deployment with Gunicorn behind Nginx
-- Docker-only runtime workflow
+- Containerized Gunicorn app container
+- Host Nginx reverse proxy workflow
 
 ## Project Structure
 
@@ -61,7 +61,16 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The image installs Python dependencies with `uv`, then runs Django behind Gunicorn. Nginx listens on port `80` and proxies requests to the `web` container.
+The image installs Python dependencies with `uv` and runs Gunicorn on `127.0.0.1:8000` on the host. Use the bundled Nginx config as the host Nginx site config so port `80` proxies to the Django container.
+
+Example host Nginx setup:
+
+```bash
+sudo cp deploy/nginx/default.conf /etc/nginx/sites-available/cdr_report
+sudo ln -sf /etc/nginx/sites-available/cdr_report /etc/nginx/sites-enabled/cdr_report
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
 Run migrations and create a superuser in the container:
 
@@ -81,11 +90,12 @@ This creates Django auth/session/admin tables only. It does not recreate or modi
 ## How It Works
 
 - `cdr_portal/settings.py` reads PostgreSQL and Django configuration from environment variables.
+- Application timestamps default to `Asia/Bishkek` (`GMT+6`) and can be overridden with `DJANGO_TIME_ZONE`.
 - `cdr/models.py` maps the existing `cucm_cdr` table with `managed = False`.
 - `cdr/forms.py` defines the GET-based search/filter form.
-- `cdr/views.py` applies phone/date filters, limits selected columns, orders by origination date descending, paginates 100 rows per page, and exports the filtered result set to Excel.
+- `cdr/views.py` applies one-or-many phone/date filters, limits selected columns, orders by origination date descending, paginates 100 rows per page, and exports the filtered result set to Excel.
 - `templates/` contains Bootstrap-based login/logout and CDR list pages.
-- `deploy/nginx/default.conf` proxies HTTP traffic to Gunicorn in the `web` container.
+- `deploy/nginx/default.conf` is intended for the host Nginx service and proxies HTTP traffic to Gunicorn on `127.0.0.1:8000`.
 
 ## Important Note About the Model Primary Key
 

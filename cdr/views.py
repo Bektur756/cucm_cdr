@@ -46,17 +46,20 @@ class CdrQueryMixin(LoginRequiredMixin):
         if not self.form.is_valid():
             return queryset
 
-        phone_number = self.form.cleaned_data.get("phone_number")
+        phone_numbers = self.form.cleaned_data.get("phone_number")
         start_date = self.form.cleaned_data.get("start_date")
         end_date = self.form.cleaned_data.get("end_date")
 
-        if phone_number:
-            queryset = queryset.filter(
-                Q(calling_party_number__icontains=phone_number)
-                | Q(original_called_party_number__icontains=phone_number)
-                | Q(final_called_party_number__icontains=phone_number)
-                | Q(last_redirect_dn__icontains=phone_number)
-            )
+        if phone_numbers:
+            phone_query = Q()
+            for phone_number in phone_numbers:
+                phone_query |= (
+                    Q(calling_party_number__icontains=phone_number)
+                    | Q(original_called_party_number__icontains=phone_number)
+                    | Q(final_called_party_number__icontains=phone_number)
+                    | Q(last_redirect_dn__icontains=phone_number)
+                )
+            queryset = queryset.filter(phone_query)
 
         current_tz = timezone.get_current_timezone()
 
